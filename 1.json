@@ -1,0 +1,216 @@
+[
+	{
+	    "test_id": "ISP_LLM_001",
+	    "objective": "Diagnose BGP neighbor state issues from command output.",
+	    "category": "Routing Problems",
+	    "protocols":
+	    [
+	        "BGP"
+	    ],
+	    "input_data": "show router bgp summary\n===============================================================================\nBGP Summary\n===============================================================================\nLegend: P-# Prepend Summary\nAS            : 65001      Router ID      : 192.168.1.1\nVRF ID        : N/A        VRF Name       : N/A\nAdmin Status  : Up         Oper Status    : Up\nHold Time     : 90         Min Route Adver: 30         Route Reflector: Disabled\nConfed AS     : 0\nCluster ID    : 0.0.0.0\nLocal AS Loops: 1          Default Orig   : Disabled   Send Def Route : Disabled\n\nRestart Time  : 120        Stale Route Tim: 360        Peer Tracking  : Disabled\nGraceful Rstrt: Enabled    Helper Support : Enabled\nRapid Update  : Disabled   Rapid Fallover : Disabled   Log Neighbor Ch: Enabled\nECMP          : 2          Default MED    : N/A        Compare MED All: Disabled\nCompare RtrID : Disabled   Ignore Nexthop : Disabled   Ignore AS Path : Disabled\nPrivate AS Cnt: Disabled   Remove Prvt All: Disabled   Remove Prvt Rep: Disabled\nAggregator ID : 192.168.1.1 Aggr AS        : 65001      Use Aggr ID AS : Disabled\nBest Path Sel : ---\n  Always Comp MED: Disabled   Path Selection : Enabled    Add Path       : Disabled\n  Ignore NH MED  : Disabled   AS Path MP Multipath: Disabled Add Path Max Path: 0\n  BGP Adv Passive: Disabled\n  Local Pref     : 100        Dampening      : Disabled   Route Policies : Disabled\n\n-------------------------------------------------------------------------------\nNeighbor Summary (all)\n-------------------------------------------------------------------------------\nNeighbor        AS    Admin Oper State   Flaps    In Pfx   Act Pfx Out Pfx Up/Down\n-------------------------------------------------------------------------------\n192.168.10.1  65002   Up    Idle         5        0        0       0       0d00h05m10s\n192.168.10.5  65003   Up    Established  0        150000   150000  10      10d05h15m20s\n192.168.10.9  65004   Down  Down         1        0        0       0       0d00h00m00s\n===============================================================================",
+	    "prompt": "Analyze the provided BGP summary output from a Nokia SR OS router. Identify any BGP neighbors with potential issues, describe the likely state or problem for each, and suggest initial troubleshooting steps.",
+	    "expected_output": "Identifies neighbor 192.168.10.1 is in 'Idle' state despite being Administratively 'Up', indicating a connection or configuration issue (likely TCP connection failure, incorrect neighbor IP/AS, firewall). Suggests checking connectivity (ping), neighbor configuration on both sides, and firewall rules. Identifies neighbor 192.168.10.9 is Administratively 'Down', meaning it's configured but shut down locally. Suggests checking the local configuration (`config>router>bgp>neighbor>shutdown`). Mentions neighbor 192.168.10.5 is operational."
+	},
+	{
+	    "test_id": "ISP_LLM_002",
+	    "objective": "Interpret BGP route instability based on logs.",
+	    "category":
+	    [
+	        "Routing Problems",
+	        "Log Analysis"
+	    ],
+	    "protocols":
+	    [
+	        "BGP"
+	    ],
+	    "input_data": "tmnxSyslog: 1 2023/10/27 10:15:01.000 UTC Minor BGP #2004 Base Peer 198.51.100.2\n\"Peer 198.51.100.2 (AS 65100) Up\"\n\ntmnxSyslog: 1 2023/10/27 10:15:35.000 UTC Minor BGP #2005 Base Peer 198.51.100.2\n\"Peer 198.51.100.2 (AS 65100) Down: BGP Notification received, code: Hold Timer Expired (4), subcode: 0\"\n\ntmnxSyslog: 1 2023/10/27 10:16:01.000 UTC Minor BGP #2004 Base Peer 198.51.100.2\n\"Peer 198.51.100.2 (AS 65100) Up\"\n\ntmnxSyslog: 1 2023/10/27 10:16:38.000 UTC Minor BGP #2005 Base Peer 198.51.100.2\n\"Peer 198.51.100.2 (AS 65100) Down: BGP Notification received, code: Hold Timer Expired (4), subcode: 0\"\n\ntmnxSyslog: 1 2023/10/27 10:17:05.000 UTC Minor BGP #2004 Base Peer 198.51.100.2\n\"Peer 198.51.100.2 (AS 65100) Up\"",
+	    "prompt": "Based on these Nokia SR OS syslog messages, describe the state of the BGP peering session with 198.51.100.2. What is the likely cause of the repeated 'Down' events, and what should be investigated?",
+	    "expected_output": "Describes the BGP session as flapping (repeatedly going up and down). Identifies the cause of failure as 'Hold Timer Expired'. Suggests investigating potential causes like high latency, packet loss on the path between peers, high CPU on either peer preventing keepalives processing, MTU mismatch issues, or mismatched hold timers (though less likely with explicit message). Recommends checking interface statistics, path latency/loss (ping/traceroute), and CPU utilization on both BGP peers."
+	},
+	{
+	    "test_id": "ISP_LLM_003",
+	    "objective": "Analyze potential MPLS LSP path issues.",
+	    "category": "Routing Problems",
+	    "protocols":
+	    [
+	        "MPLS (RSVP-TE)",
+	        "IGP (Implicit)"
+	    ],
+	    "input_data": "show router mpls lsp \"to_PE3\" path detail\n===============================================================================\nMPLS LSP to_PE3 Path Detail\n===============================================================================\nLSP Name        : to_PE3                     Path Name      : primary\nPath Oper State : Down                       Retry Timer    : 30 sec\nPath Admin State: Up                         Hop Limit      : 32\nTo              : 192.168.1.3                From           : 192.168.1.1\nPrimary         : primary\nWorking Path    : primary (1)\n-------------------------------------------------------------------------------\nPath Information : primary (1)\n-------------------------------------------------------------------------------\nReceived RRO : None\nLast Error   : No path found for LSP to_PE3, path primary\n\nActual Path  : None\nComputed CSPF Path:\nHop Address                             ERO Hop Type   MTU   LSP/Lnk/OutLbl M/B/I/L\n-------------------------------------------------------------------------------\nNo path found\n===============================================================================",
+	    "prompt": "An MPLS LSP named 'to_PE3' destined for 192.168.1.3 is operationally down on this Nokia SR OS router. The LSP path detail shows 'No path found'. Assuming the destination PE (192.168.1.3) is present in the IGP (OSPF) database based on separate checks, what are the most likely reasons for the CSPF failure, and what should be checked on this router?",
+	    "expected_output": "Explains that CSPF failure means the router couldn't compute a path satisfying the LSP's constraints using the TE database derived from the IGP. Likely reasons include:\n1. Lack of TE-enabled links along any potential path towards 192.168.1.3.\n2. Insufficient available bandwidth on required links (if bandwidth constraint is configured on LSP).\n3. Admin-group (color) constraints on the LSP that cannot be met by available links.\n4. Explicit Route Object (ERO) constraints that specify unreachable or non-TE hops.\n5. IGP reachability issue *despite* the router LSA being present (e.g., broken ABR connection, partitioning).\nSuggests checking: LSP configuration constraints (`config>router>mpls>lsp>...`), TE parameters on interfaces (`show router ospf TEdatabase`, `show router interface detail`), IGP topology and TE link state (`show router ospf database extensive`), and potentially running `tools perform router mpls test-cspf lsp \"to_PE3\" path \"primary\"`."
+	},
+	{
+	    "test_id": "ISP_LLM_004",
+	    "objective": "Correlate link errors with potential service impact.",
+	    "category": "Link Failures/Errors",
+	    "protocols":
+	    [
+	        "Ethernet",
+	        "(Implicit: Services riding over the link)"
+	    ],
+	    "input_data": "show port 1/1/1 detail\n===============================================================================\nEthernet Interface\n===============================================================================\nDescription        : Link_to_Core_Router_2\nInterface          : 1/1/1                  Oper Speed       : 10 Gbps\nAdmin State        : up                     Oper Duplex      : full\nOper State         : up                     Link State       : Up\nPhys Address       : 00:11:22:aa:bb:cc      Configured Mode  : network\n[...]\nInput packets      : 1500000000             Output packets     : 1200000000\nInput bytes        : 1800000000000          Output bytes       : 1500000000000\nInput errors       : 5                      Output errors      : 0\n  Runts            : 0                        Collisions       : 0\n  Giants           : 0                        Late Collisions  : 0\n  CRC/Align errors : 5                        Excessive Collis : 0\n  FIFO Overruns    : 0\n  Input Discards   : 10                       Output Discards    : 2\n    In Discard Other : 10                       Out Discard Other: 2\n[...]\n===============================================================================",
+	    "prompt": "Interface 1/1/1 on this Nokia SR OS router shows 5 CRC/Align errors and 10 Input Discards recently. Although the counts are low, assume based on separate log analysis that there have also been intermittent protocol flaps (like BGP or OSPF) with the neighbor connected via this link. Correlate the interface errors with the potential protocol instability. What could be the underlying cause, and what is the recommended action?",
+	    "expected_output": "Explains that CRC/Align errors indicate physical layer problems (Layer 1). Even low counts can corrupt packets, potentially including critical protocol keepalives or updates. This corruption can lead to protocol packets being dropped (contributing to Input Discards if malformed) or timers expiring (like BGP hold timer or OSPF dead timer), causing the observed flaps. The underlying cause is likely a faulty optic (SFP/QSFP) on either end, a damaged fiber patch cable, a dirty connector, or potentially issues with the physical port itself. Recommends checking/replacing optics and patch cords, cleaning fiber connectors, and if the issue persists, potentially moving the connection to a different port. Monitoring the error counters after action is crucial."
+	},
+	{
+	    "test_id": "ISP_LLM_005",
+	    "objective": "Diagnose LDP session issues.",
+	    "category": "Routing Problems",
+	    "protocols":
+	    [
+	        "MPLS (LDP)",
+	        "IGP (Implicit)"
+	    ],
+	    "input_data": "show router ldp session\n===============================================================================\nLDP Sessions\n===============================================================================\nPeer LDP Id      State        Adv Labels     Adj Type Msg Sent    Msg Recv\n                                Sent   Recv               Sent Recv Up Time\n-------------------------------------------------------------------------------\n192.168.1.2:0    Operational  9500   9800     Link     50000 50000 25d10h\n192.168.1.4:0    Nonexistent  0      0        --       0     0     --\n===============================================================================\n\nshow router ldp discovery\n===============================================================================\nLDP Discovery Sources\n===============================================================================\nInterface Name                     Transport Addr Type       Active Sessions\n  Adj Type                         LDP Id         Hold Time  Remaining Time\n-------------------------------------------------------------------------------\nintf_to_R2                         192.168.10.2   Interface  Yes\n  Link                             192.168.1.2:0  45         42\nintf_to_R4                         192.168.10.4   Interface  No\n  Link                             192.168.1.4:0  45         N/A\n===============================================================================",
+	    "prompt": "Analyze the LDP session and discovery output from this Nokia SR OS router. The LDP session to peer 192.168.1.4:0 is 'Nonexistent', but LDP discovery shows the peer is being heard via interface 'intf_to_R4'. Assume basic IP connectivity to the interface IP (192.168.10.4) from the corresponding local interface IP (e.g., 192.168.10.1) is confirmed via ping. What are the likely reasons the LDP TCP session failed to establish?",
+	    "expected_output": "Explains that LDP uses Hello messages (UDP) for discovery on the link and then attempts to establish a TCP session between the LDP identifiers (typically router IDs, using the transport addresses). Since discovery is working but the session isn't established, the issue lies with the TCP connection on port 646. Potential reasons:\n1. Mismatched LDP transport addresses (router IDs) configured or used for session establishment. Router might be trying to connect to 192.168.1.4, but the remote router expects connection from a different source IP.\n2. Firewall/ACL blocking TCP port 646 between the LDP transport addresses (192.168.1.1 and 192.168.1.4).\n3. LDP is not enabled or configured correctly on the remote router (192.168.1.4) for session establishment, or specifically disabled towards this peer.\n4. Underlying routing issue for the LDP transport addresses (e.g., 192.168.1.1 cannot reach 192.168.1.4 via routing table, even if link IPs are pingable).\nSuggests verifying LDP configuration on both routers (transport address, interface enablement), checking ACLs/firewalls, and confirming routing table reachability for the LDP identifiers."
+	},
+	{
+	    "test_id": "ISP_LLM_006",
+	    "objective": "Troubleshoot SRv6 Segment Routing path reachability.",
+	    "category": "Routing Problems",
+	    "protocols":
+	    [
+	        "SRv6",
+	        "IS-IS/OSPF (Implicit)",
+	        "BGP (Implicit for inter-domain)"
+	    ],
+	    "input_data": "show router segment-routing srv6-policy \"Policy_to_PE5_via_R3\" detail\n===============================================================================\nSRv6 Policy \"Policy_to_PE5_via_R3\" Detail\n===============================================================================\nName            : Policy_to_PE5_via_R3       Endpoint IP    : 2001:db8:5::1\nAdmin State     : Up                         Oper State     : Down\nBinding SID     : cafe:5::                     Color          : 100\nPreference      : 100\nSegment List    : SL_PE5_via_R3              Oper SL Index  : None\nLast Error      : Segment List SL_PE5_via_R3 invalid: Next SID unreachable\nNext SID Addr   : 2001:db8:3::ad:0               Next SID Type  : End.X\n===============================================================================\n\n(Context: Output from 'show router isis srv6-locator \"DEFAULT\" node 2001:db8:3:: detail' confirms the locator 2001:db8:3::/64 exists for node R3, but doesn't show the specific End.X SID)\n(Context: Output from 'show router route-table ipv6 2001:db8:3::ad:0 /128 detail' shows no matching route)",
+	    "prompt": "An SRv6 TE Policy 'Policy_to_PE5_via_R3' is operationally down on this Nokia SR OS router. The error indicates the Segment List is invalid because the 'Next SID unreachable', specifically identifying SID 2001:db8:3::ad:0 (an End.X SID for router R3). Based on the provided command output and context (R3's locator /64 is known via IS-IS, but the specific /128 SID has no route entry), what are the likely reasons this specific SID is unreachable and how should it be investigated?",
+	    "expected_output": "Explains that SRv6 reachability depends on routing to the SIDs in the segment list. Even if R3's main locator is known via IS-IS, the specific End.X SID (2001:db8:3::ad:0) might be unreachable due to:\n1. The SID 2001:db8:3::ad:0 is not actually advertised by R3 in IS-IS (configuration error on R3).\n2. There is no valid entry in the IPv6 routing table (specifically `route-table ipv6`) on the current router for the exact SID 2001:db8:3::ad:0/128. Reachability might only exist for the /64 locator, but not the specific function SID if it requires a more specific path or configuration.\n3. An underlying IPv6 routing problem prevents reachability to R3's loopback or interface associated with the SID, even if the locator prefix is advertised.\n4. Filtering or policy is preventing the SID advertisement from being accepted or installed in the RIB.\nSuggests verifying the SRv6 SID advertisement configuration on R3 (`config>router>isis>segment-routing>srv6>locator>...`), checking the IS-IS SRv6 SID database on the local router (`show router isis database srv6-sid ...`), examining the IPv6 route table for the specific SID (`show router route-table ipv6 2001:db8:3::ad:0 /128 detail`), and checking for any relevant route policies or filters."
+	},
+	{
+	    "test_id": "ISP_LLM_007",
+	    "objective": "Identify the cause of a network outage from link failure logs.",
+	    "category":
+	    [
+	        "Link Failures/Errors",
+	        "Log Analysis"
+	    ],
+	    "protocols":
+	    [
+	        "Ethernet",
+	        "(Affected: All protocols over the link)"
+	    ],
+	    "input_data": "tmnxSyslog: 1 2023/10/27 11:30:05.000 UTC Major ETH_CFM #2001 Base MA:100 MEP:10\n\"Remote MEP 20 for MEGID 'LinkCheck-A-B', MAID 'MA100' is Down, Interface Port 1/1/5\"\n\ntmnxSyslog: 1 2023/10/27 11:30:06.000 UTC Critical PORT #2004 Base Port 1/1/5\n\"Port 1/1/5 Link Down - Loss of Signal\"\n\ntmnxSyslog: 1 2023/10/27 11:30:07.000 UTC Minor OSPF #2001 Base Interface intf-to-B\n\"OSPF Interface intf-to-B (1/1/5) state change to Down, reason: Link Down\"\n\ntmnxSyslog: 1 2023/10/27 11:30:07.000 UTC Minor LDP #2001 Base Interface intf-to-B\n\"LDP Interface intf-to-B (1/1/5) Down\"\n\ntmnxSyslog: 1 2023/10/27 11:30:10.000 UTC Minor BGP #2005 Base Peer 192.168.20.2\n\"Peer 192.168.20.2 (AS 65002) Down: Interface flap or address removed\"",
+	    "prompt": "Analyze this sequence of Nokia SR OS syslog messages. What is the root cause of the BGP peer 192.168.20.2 going down, and what sequence of events led to it?",
+	    "expected_output": "Identifies the root cause as a physical link failure on Port 1/1/5, indicated by the 'Port 1/1/5 Link Down - Loss of Signal' message. Explains the sequence:\n1. The physical link failed (Loss of Signal).\n2. Ethernet CFM detected the failure almost immediately ('Remote MEP ... Down').\n3. The port state change triggered the IGP (OSPF) interface to go down.\n4. The LDP interface associated with the port also went down.\n5. The BGP session with peer 192.168.20.2, which likely used this link for connectivity (either directly or via IGP learned route), failed because its underlying reachability was lost."
+	},
+	{
+	    "test_id": "ISP_LLM_008",
+	    "objective": "Analyze impact of interface flapping.",
+	    "category": "Link Failures/Errors",
+	    "protocols":
+	    [
+	        "Ethernet",
+	        "IGP",
+	        "BGP",
+	        "MPLS"
+	    ],
+	    "input_data": "show port 1/1/2 | match \"Link State|Oper State|Flaps\"\nOper State         : up                     Link State       : Up/Flapping(5)",
+	    "prompt": "Port 1/1/2 on a Nokia SR OS router is reported as 'Up/Flapping(5)', indicating 5 recent link state changes. Assume this is correlated with intermittent log messages showing protocol instability. Describe the likely impact of this flapping on routing protocols (like OSPF/ISIS, BGP) and MPLS LSPs potentially using this link. Why is flapping often more disruptive than a hard down failure?",
+	    "expected_output": "Explains that interface flapping causes repeated link down/up events. Each down event triggers:\n1. IGP (OSPF/ISIS) adjacency tear-down, flooding of topology updates (LSAs/LSPs) indicating link removal, and SPF recalculations across the area/level.\n2. LDP/RSVP sessions over the link to tear down.\n3. BGP sessions using the link directly or indirectly to potentially drop (if hold timers expire during down period or due to next-hop invalidation).\n4. MPLS LSPs using the link to fail and potentially attempt rerouting (if FRR or secondary paths configured).\nEach subsequent up event triggers the reverse: IGP adjacency forms, new updates flood, SPF runs again, LDP/RSVP/BGP attempt to re-establish, LSPs may revert.\nFlapping is often worse than a hard down because it causes continuous network instability: constant recalculations consume router CPU, topology churn prevents convergence, traffic may blackhole briefly during transitions, and protocols may enter dampening states (e.g., BGP flap dampening) further delaying restoration. A hard down allows the network to converge to a stable alternate state."
+	},
+	{
+	    "test_id": "ISP_LLM_009",
+	    "objective": "Interpret BGP Notification message details from logs.",
+	    "category":
+	    [
+	        "Routing Problems",
+	        "Log Analysis"
+	    ],
+	    "protocols":
+	    [
+	        "BGP"
+	    ],
+	    "input_data": "tmnxSyslog: 1 2023/10/27 12:05:15.000 UTC Minor BGP #2005 Base Peer 203.0.113.5\n\"Peer 203.0.113.5 (AS 65200) Down: BGP Notification received, code: Update Message Error (3), subcode: Invalid Next Hop Attribute (8), data: [Relevant part of BGP update causing error, e.g., showing the faulty next-hop IP]\"",
+	    "prompt": "A BGP session went down with peer 203.0.113.5. The Nokia SR OS log indicates a Notification was *received* with error code 3, subcode 8 (Invalid Next Hop Attribute). What does this specific error code/subcode combination imply about the cause of the session failure? Whose configuration is likely at fault?",
+	    "expected_output": "Explains that receiving a BGP Notification means the *remote* peer (203.0.113.5, AS 65200) detected an error in an UPDATE message sent *by the local router*. The specific error 'Update Message Error / Invalid Next Hop Attribute' (Code 3, Subcode 8) means the local router sent a BGP update containing a next-hop IP address that the remote router considers invalid according to BGP rules (e.g., for eBGP, the next-hop must typically be the IP address of the sending router on the peering subnet, unless `next-hop-self` or specific policies are used). This implies the configuration fault likely lies on the *local* router, specifically in its route policies or BGP export configuration that determines the next-hop attribute for advertised routes."
+	},
+	{
+	    "test_id": "ISP_LLM_010",
+	    "objective": "Predict impact of a planned link maintenance.",
+	    "category": "Proactive Analysis",
+	    "protocols":
+	    [
+	        "All relevant (IGP, BGP, MPLS/SRv6)"
+	    ],
+	    "input_data": "(Scenario Description: Network engineers plan to perform maintenance on the fiber link connecting Core_Router_A (this router) Port 1/1/3 to Core_Router_C. This is a primary path for several critical MPLS LSPs and carries significant transit BGP traffic. Assume Core_Router_A and Core_Router_C are OSPF neighbors over this link, and there is an alternate path via Core_Router_B. Assume MPLS FRR (Fast Reroute) is configured for affected LSPs.)\n\n(Context: 'show router ospf interface \"intf_to_C\" detail' shows a lower OSPF cost, e.g., cost 10)\n(Context: 'show router ospf interface \"intf_to_B\" detail' shows a higher OSPF cost, e.g., cost 50)\n(Context: 'show router mpls lsp transit-services | match TunnelID | count' shows a significant number, e.g., 50 transit LSPs)\n(Context: 'show router bgp neighbor <Neighbor_C_IP> | match \"Hold Time|Up/Down\"' shows an established BGP session)",
+	    "prompt": "Based on the scenario description and typical ISP network behavior/context provided, predict the sequence of events and impact when the link on Port 1/1/3 is administratively shut down for maintenance. Consider OSPF, MPLS LSPs (with FRR), and BGP sessions. Mention the role of the alternate path via Core_Router_B.",
+	    "expected_output": "Predicts the following sequence and impact:\n1. Admin shutdown of Port 1/1/3 causes immediate link down.\n2. MPLS FRR (if protecting LSPs using this link) should activate within milliseconds (typically <50ms), rerouting traffic onto pre-calculated backup paths (likely via Router_B if it's the Loop-Free Alternate). Minimal traffic loss expected for protected LSPs.\n3. OSPF adjacency over Port 1/1/3 will drop. Router_A will flood updated LSAs removing the link. Routers in the area will recalculate SPF. Traffic previously routed via the direct A-C link based on IGP cost will now use the higher-cost path via Router_B.\n4. LDP/RSVP adjacencies over the link will drop.\n5. BGP session(s) directly over the link (if any) will drop. BGP sessions relying on the IGP path via C might also reconverge if next-hops change, potentially causing brief BGP instability. Traffic will shift to alternate BGP paths.\n6. Transit LSPs not using the link directly but relying on the IGP path over A-C might also trigger make-before-break or standard rerouting onto the new shortest path via B.\n7. Overall impact: Brief reconvergence event. Protected traffic (MPLS FRR) sees minimal impact. Unprotected traffic follows IGP/BGP reconvergence, potentially seeing slightly longer outage/reroute time. Network stabilizes using path via Router_B. Latency might increase due to potentially longer/higher-cost path."
+	},
+	{
+	    "test_id": "ISP_LLM_011",
+	    "objective": "Correlate events across multiple log snippets for root cause analysis.",
+	    "category":
+	    [
+	        "Log Analysis",
+	        "Routing Problems"
+	    ],
+	    "protocols":
+	    [
+	        "OSPF",
+	        "BGP"
+	    ],
+	    "input_data": "Log Snippet 1 (Router A):\ntmnxSyslog: 1 2023/10/27 14:00:10.000 UTC Minor OSPF #2001 Base Interface intf-to-X\n\"OSPF Interface intf-to-X (1/1/9) state change to Down, reason: Link Down\"\n\ntmnxSyslog: 1 2023/10/27 14:00:15.000 UTC Minor BGP #2005 Base Peer 192.168.50.1\n\"Peer 192.168.50.1 (AS 65050) Down: Next hop resolution failed\"\n\nLog Snippet 2 (Router B - connected to Router A):\ntmnxSyslog: 1 2023/10/27 14:00:12.000 UTC Info OSPF #2004 Base Neighbor 192.168.0.1\n\"OSPF Rtr 192.168.0.1 (Router A) neighbor state change to Down, Intf: intf-to-A\"\n\ntmnxSyslog: 1 2023/10/27 14:00:18.000 UTC Info BGP #2006 Base Peer 192.168.0.1\n\"Peer 192.168.0.1 (Router A) Path Rcvd: Withdrawn route for prefix 198.18.1.0/24\"",
+	    "prompt": "Router A experiences an OSPF interface down event followed by a BGP peer down event ('Next hop resolution failed'). Router B logs show its OSPF neighbor (Router A) going down and a BGP route withdrawal from Router A around the same time. Correlate these events. What is the likely relationship between the OSPF failure on Router A and the BGP session failure also reported by Router A?",
+	    "expected_output": "Correlates the events showing a dependency. The OSPF interface down on Router A (intf-to-X) likely removed the route Router A was using to reach the next-hop for its BGP peer 192.168.50.1. The BGP process detected it could no longer resolve the necessary next-hop IP address in the routing table (learned via OSPF), causing it to declare the peer down due to 'Next hop resolution failed'. The events on Router B confirm the OSPF adjacency drop and subsequent BGP updates resulting from Router A's topology change. The root cause appears to be the failure on Router A's interface 1/1/9 ('intf-to-X')."
+	},
+	{
+	    "test_id": "ISP_LLM_012",
+	    "objective": "Summarize a complex network incident from verbose logs.",
+	    "category": "Log Analysis",
+	    "protocols":
+	    [
+	        "Mixed (e.g., Interface, OSPF, BGP, MPLS)"
+	    ],
+	    "input_data": "(Simulated Log Sequence - Provide 15-20 realistic interleaved log lines)\ntmnxSyslog: ... Port 1/1/4 Input errors: CRC/Align errors: increasing ...\ntmnxSyslog: ... Port 1/1/4 Link Down - Intermittent Signal ...\ntmnxSyslog: ... OSPF Interface intf-X (1/1/4) state change to Down ...\ntmnxSyslog: ... MPLS LSP 'Critical_LSP_1' FRR activated ...\ntmnxSyslog: ... Port 1/1/4 Link Up ...\ntmnxSyslog: ... OSPF Interface intf-X (1/1/4) state change to Up ...\ntmnxSyslog: ... BGP Peer 192.0.2.2 Down: Hold Timer Expired ...\ntmnxSyslog: ... Port 1/1/4 Link Down - Loss of Signal ...\ntmnxSyslog: ... OSPF Interface intf-X (1/1/4) state change to Down, reason: Link Down ...\ntmnxSyslog: ... MPLS LSP 'Critical_LSP_1' Path Error, No path available ...\ntmnxSyslog: ... OSPF recalculating routes, new path via interface Y ...\ntmnxSyslog: ... BGP Peer 192.0.2.2 attempting connection ...\ntmnxSyslog: ... MPLS LSP 'Critical_LSP_1' Path Setup successful via secondary path ...\ntmnxSyslog: ... BGP Peer 192.0.2.2 Up (Established via alternate path) ...\ntmnxSyslog: ... Port 1/1/4 Oper State: Down ...",
+	    "prompt": "Review the provided sequence of simulated Nokia SR OS log messages detailing a network incident. Provide a concise summary (2-3 sentences) describing the root cause, the key events, and the final state.",
+	    "expected_output": "A concise summary similar to: \"An incident occurred triggered by physical layer issues (CRC errors, flapping) on Port 1/1/4. This caused instability in OSPF, MPLS, and BGP protocols using the link, including FRR activation and BGP session drops. The issue culminated in a hard failure of Port 1/1/4, after which the network reconverged using alternate paths, restoring affected LSPs and BGP sessions.\""
+	},
+	{
+	    "test_id": "ISP_LLM_013",
+	    "objective": "Analyze a BGP configuration snippet for potential issues.",
+	    "category":
+	    [
+	        "Routing Problems",
+	        "Configuration Analysis"
+	    ],
+	    "protocols":
+	    [
+	        "BGP"
+	    ],
+	    "input_data": "configure router bgp\n    group \"EBGP-Peer-AS65300\"\n        type external\n        neighbor 192.0.2.1\n            peer-as 65300\n            description \"Peering with AS65300\"\n            import \"POLICY-IMPORT-AS65300\"\n            export \"POLICY-EXPORT-AS65300\"\n            local-address 198.51.100.1 // Assumes this is our loopback, not interface IP\n            local-as 65001 no-prepend-global-as\n        exit\n    exit\nexit\n\nconfigure policy-options\n    policy-statement \"POLICY-EXPORT-AS65300\"\n        entry 10\n            from\n                protocol direct\n            exit\n            action accept\n            exit\n        exit\n        entry 20\n            from\n                prefix-list \"CUSTOMER-PREFIXES\"\n            exit\n            action accept\n                community add \"65001:100\"\n            exit\n        exit\n        default-action reject\n        exit\n    exit\nexit",
+	    "prompt": "Review this Nokia SR OS BGP configuration snippet for the neighbor 192.0.2.1 in AS 65300. Identify potential configuration issues or areas for concern in a typical ISP eBGP peering context.",
+	    "expected_output": "Identifies potential issues:\n1. **`local-address`**: Using a loopback address (198.51.100.1) for an eBGP session usually requires `ebgp-multihop` to be configured (unless the peer is directly connected via the loopback's /32 route, which is rare). This session might fail to establish if multihop isn't set or if the peer doesn't have a route to the local-address.\n2. **Export Policy**: Exporting `protocol direct` routes (entry 10) to an eBGP peer is generally discouraged and potentially dangerous, as it leaks infrastructure interface addresses.\n3. **Default Action Reject**: While explicit rejection is good, ensure that *all* intended prefixes are covered by entries 10 and 20 or other entries. A missing prefix-list entry could block legitimate advertisements.\n4. **Missing `ebgp-multihop`**: As noted in point 1, this is likely needed if the `local-address` is not on the directly connected interface IP used to reach the peer.\n5. **(Minor)** No explicit MED setting or import policy manipulation shown, which might be needed depending on peering agreements."
+	},
+	{
+	    "test_id": "ISP_LLM_014",
+	    "objective": "Explain sub-optimal BGP path selection based on attributes.",
+	    "category": "Routing Problems",
+	    "protocols":
+	    [
+	        "BGP"
+	    ],
+	    "input_data": "show router bgp routes 203.0.113.0/24 extensive\n===============================================================================\nBGP Route Entries for 203.0.113.0/24\n===============================================================================\n-------------------------------------------------------------------------------\nEntry 1 (Path ID 1) - Used, Best\n-------------------------------------------------------------------------------\nFrom : 192.168.10.5 (192.168.1.5)        Peer AS : 65003\nReceived : 2023/10/26 08:00:00           Protocol : ebgp\nOrigin : igp                           Local Pref : 100\nAS Path : 65003 65500 I                  Next Hop : 192.168.10.5\nMED : 100                               Communities : 65003:100 65500:50\nAIGP : N/A                              Add Path RX : No Add Path TX : N/A\n\n-------------------------------------------------------------------------------\nEntry 2 (Path ID 2) - Not Used (Higher IGP cost for next-hop)\n-------------------------------------------------------------------------------\nFrom : 192.168.20.5 (192.168.1.6)        Peer AS : 65004\nReceived : 2023/10/26 08:05:00           Protocol : ebgp\nOrigin : igp                           Local Pref : 100\nAS Path : 65004 65500 I                  Next Hop : 192.168.20.5\nMED : 50                                Communities : 65004:200 65500:50\nAIGP : N/A                              Add Path RX : No Add Path TX : N/A\nReason Not Best: Higher IGP cost for next-hop resolution\n===============================================================================",
+	    "prompt": "Analyze the BGP routes received for prefix 203.0.113.0/24 on this Nokia SR OS router. Explain why the path received from peer 192.168.10.5 (AS 65003) is selected as best, even though the path from 192.168.20.5 (AS 65004) has a lower MED (50 vs 100). Assume underlying IGP costs confirm the 'Reason Not Best' explanation.",
+	    "expected_output": "Explains the standard BGP best path selection process. It should state that while MED is considered, it comes *after* attributes like Local Preference (which is equal here at 100) and AS Path Length (which is also equal here, length 2). Crucially, BGP prefers paths with a reachable next-hop, and among those, it prefers eBGP over iBGP, and *then* considers the IGP cost to reach the next-hop *before* evaluating the MED (by default, unless `always-compare-med` is enabled). The output explicitly states the reason for non-selection of Path 2 is 'Higher IGP cost for next-hop resolution'. Therefore, even though Path 2 has a better MED, it's discarded earlier in the process because the cost to reach its next-hop (192.168.20.5) via the IGP is higher than the cost to reach the next-hop (192.168.10.5) for Path 1."
+	},
+	{
+	    "test_id": "ISP_LLM_015",
+	    "objective": "Interpret the effect of a BGP community in a route policy.",
+	    "category":
+	    [
+	        "Routing Problems",
+	        "Configuration Analysis"
+	    ],
+	    "protocols":
+	    [
+	        "BGP"
+	    ],
+	    "input_data": "configure policy-options\n    community \"NO-EXPORT-SUBCONFEDS\" members \"no-export-subconfed\"\n    policy-statement \"POLICY-IMPORT-TRANSIT\"\n        entry 10\n            from\n                community \"NO-EXPORT-SUBCONFEDS\"\n            exit\n            action reject\n            exit\n        exit\n        entry 20\n            # ... other accept actions ...\n        exit\n        default-action accept\n        exit\n    exit\nexit\n\nconfigure router bgp group \"IBGP-RR-Clients\"\n    import \"POLICY-IMPORT-TRANSIT\"\n    # ... other group config ...\nexit",
+	    "prompt": "This Nokia SR OS configuration snippet shows part of an import policy 'POLICY-IMPORT-TRANSIT' applied to an iBGP group 'IBGP-RR-Clients'. Explain the purpose and effect of entry 10, which references the BGP community 'NO-EXPORT-SUBCONFEDS' (standard well-known community 'no-export-subconfed').",
+	    "expected_output": "Explains that the `no-export-subconfed` community (often represented numerically as `0xFFFFFF03`) is a well-known BGP community. When attached to a route, it signals that the route should not be advertised outside the local autonomous system (AS) *or* to any external BGP peers (eBGP), *and* crucially, it should also not be advertised to BGP peers belonging to other member ASes within the same BGP confederation. Entry 10 in the import policy explicitly `reject`s any route received from iBGP peers (in the 'IBGP-RR-Clients' group) that carries this community. This acts as an import filter, preventing the router from accepting or using routes that are tagged to not leave their originating AS or confederation sub-AS, enforcing the intended scope of the community."
+	}
+]
